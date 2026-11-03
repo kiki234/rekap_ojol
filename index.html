@@ -126,7 +126,7 @@
             let total = '';
             if (totalMatch) {
                 total = totalMatch[1].replace(/\./g, ''); // Hapus titik ribuan
-                total = total.split(',')[0]; // Ambil angka sebelum koma (jika ada desimal, misal 8010,09 -> 8010)
+                total = total.split(',')[0]; // Ambil angka sebelum koma
             }
 
             if (type === 'shopee') {
@@ -149,6 +149,93 @@
                          resto = ''; 
                      }
                 }
+                
+                if (!resto) {
+                     const excludeWords = ['riwayat', 'pesanan', 'selesai', 'dibatalkan', 'shopeefood', 'total', 'pendapatan', 'alamat', 'pelanggan', 'disembunyikan', 'akhir', 'daftar', 'rp'];
+                     for (let line of lines) {
+                         let isResto = true;
+                         let lineLower = line.toLowerCase();
+                         if (lineLower.match(/\b\d{1,2}\s+(jan|feb|mar|apr|mei|jun|jul|agt|sep|okt|nov|des)\s+\d{4}\b/)) continue;
+                         
+                         for (let word of excludeWords) {
+                             if (lineLower.includes(word)) {
+                                 isResto = false;
+                                 break;
+                             }
+                         }
+                         if (isResto && line.length > 3) { 
+                             resto = line;
+                             break;
+                         }
+                     }
+                }
+                // Hapus simbol aneh di awal kalimat (misal ikon terbaca sebagai *)
+                document.getElementById('shopee-resto').value = resto.replace(/^[^\w\s]+/g, '').trim();
+
+            } else {
+                // --- LOGIKA INDRIVE BARU ---
+                document.getElementById('indrive-tgl').value = tgl;
+                document.getElementById('indrive-total').value = total;
+                
+                let awal = '', akhir = '', username = '';
+                
+                // 1. CARI RUTE (Patokan: Di bawah "Perjalanan Selesai")
+                let selesaiIdx = -1;
+                for (let i = 0; i < lines.length; i++) {
+                    let text = lines[i].toLowerCase();
+                    if (text.includes('perjalanan selesai') || text === 'selesai') {
+                        selesaiIdx = i;
+                        break;
+                    }
+                }
+
+                if (selesaiIdx !== -1) {
+                    const ruteLines = [];
+                    for(let i = selesaiIdx + 1; i < lines.length; i++) {
+                        let text = lines[i].toLowerCase();
+                        // Berhenti mencari rute jika ketemu kata durasi, jarak, atau format jam (misal 18:10)
+                        if(text.includes('durasi') || text.includes('jarak') || text.match(/^\d{1,2}:\d{2}$/)) {
+                            break;
+                        }
+                        ruteLines.push(lines[i]);
+                    }
+                    
+                    if (ruteLines.length > 0) {
+                        awal = ruteLines[0]; // Baris pertama setelah Selesai adalah Awal
+                    }
+                    if (ruteLines.length > 1) {
+                        akhir = ruteLines[ruteLines.length - 1]; // Baris terakhir sebelum Durasi adalah Akhir
+                    }
+                }
+
+                // 2. CARI USERNAME (Patokan: Di atas "Anda telah menilai")
+                let menilaiIdx = -1;
+                for (let i = 0; i < lines.length; i++) {
+                     if (lines[i].toLowerCase().includes('menilai')) {
+                         menilaiIdx = i;
+                         break;
+                     }
+                }
+                
+                if (menilaiIdx > 0) {
+                    // Cari ke atas dari kata "menilai" untuk menemukan nama user
+                    for (let i = menilaiIdx - 1; i >= 0; i--) {
+                        let text = lines[i].toLowerCase();
+                        // Abaikan baris berisi info durasi, jarak, atau jam
+                        if (!text.includes('durasi') && !text.includes('jarak') && !text.includes('mnt') && !text.includes('km') && !text.match(/^\d{1,2}:\d{2}$/)) {
+                            username = lines[i];
+                            break;
+                        }
+                    }
+                }
+                
+                // .replace(/^[^\w\s]+/g, '') berfungsi membuang simbol aneh di awal kalimat.
+                // Jadi jika ikon titik biru/hijau atau ikon senyum terbaca sebagai "O", "*", atau "•", akan otomatis dihapus.
+                document.getElementById('indrive-awal').value = awal.replace(/^[^\w\s]+/g, '').trim();
+                document.getElementById('indrive-akhir').value = akhir.replace(/^[^\w\s]+/g, '').trim();
+                document.getElementById('indrive-user').value = username.replace(/^[^\w\s]+/g, '').trim();
+            }
+        }
                 
                 if (!resto) {
                      const excludeWords = ['riwayat', 'pesanan', 'selesai', 'dibatalkan', 'shopeefood', 'total', 'pendapatan', 'alamat', 'pelanggan', 'disembunyikan', 'akhir', 'daftar', 'rp'];
