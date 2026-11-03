@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rekap Orderan Ojol Mas Sofyan</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Library Kompresi Gambar -->
     <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+    <!-- Library OCR untuk baca resi -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         .hidden-tab { display: none; }
@@ -14,10 +16,12 @@
 <body class="bg-gray-100 font-sans pb-20">
     <div class="max-w-md mx-auto bg-white min-h-screen shadow-lg">
         
+        <!-- Header -->
         <header class="bg-blue-600 text-white p-4 text-center">
             <h1 class="text-xl font-bold">Rekap Orderan Ojol</h1>
         </header>
 
+        <!-- Tab Upload -->
         <div id="tab-upload" class="p-5">
             <label class="block text-sm font-medium text-gray-700 mb-2">Pilih Jenis Orderan</label>
             <select id="orderType" class="w-full p-2 border rounded mb-4" onchange="toggleForm()">
@@ -30,15 +34,17 @@
             
             <p id="ocrStatus" class="text-sm text-blue-500 font-semibold mb-4"></p>
 
+            <!-- Form Shopee -->
             <div id="form-shopee" class="space-y-3">
-                <input type="text" id="shopee-tgl" placeholder="Tanggal (DD/MM/YYYY)" class="w-full p-2 border rounded">
+                <input type="text" id="shopee-tgl" placeholder="Tanggal (DD MMM YYYY)" class="w-full p-2 border rounded">
                 <input type="text" id="shopee-resto" placeholder="Nama Resto" class="w-full p-2 border rounded">
                 <input type="number" id="shopee-total" placeholder="Total Pendapatan (Rp)" class="w-full p-2 border rounded">
             </div>
 
+            <!-- Form inDrive -->
             <div id="form-indrive" class="space-y-3 hidden-tab">
-                <input type="text" id="indrive-tgl" placeholder="Tanggal (DD/MM/YYYY)" class="w-full p-2 border rounded">
-                <input type="text" id="indrive-user" placeholder="Username" class="w-full p-2 border rounded">
+                <input type="text" id="indrive-tgl" placeholder="Tanggal (DD MMM YYYY)" class="w-full p-2 border rounded">
+                <input type="text" id="indrive-user" placeholder="Username Pelanggan" class="w-full p-2 border rounded">
                 <input type="text" id="indrive-awal" placeholder="Perjalanan Awal" class="w-full p-2 border rounded">
                 <input type="text" id="indrive-akhir" placeholder="Perjalanan Akhir" class="w-full p-2 border rounded">
                 <input type="number" id="indrive-total" placeholder="Total Diterima (Rp)" class="w-full p-2 border rounded">
@@ -49,8 +55,9 @@
             </button>
         </div>
 
+        <!-- Tab Analisa -->
         <div id="tab-analisa" class="p-5 hidden-tab">
-            <button onclick="loadAnalisa()" class="w-full bg-blue-500 text-white font-bold py-2 rounded mb-4">Refresh Analisa</button>
+            <button onclick="loadAnalisa()" class="w-full bg-blue-500 text-white font-bold py-2 rounded mb-4 shadow">Refresh Analisa</button>
             <div id="analisa-content" class="space-y-4">
                 <div class="p-4 bg-gray-50 border rounded shadow-sm">
                     <h3 class="font-bold text-gray-800">ShopeeFood Terlaris</h3>
@@ -67,16 +74,20 @@
             </div>
         </div>
 
-        <nav class="fixed bottom-0 w-full max-w-md bg-white border-t flex justify-around p-3 shadow-lg">
+        <!-- Bottom Navigation -->
+        <nav class="fixed bottom-0 w-full max-w-md bg-white border-t flex justify-around p-3 shadow-lg z-50">
             <button onclick="switchTab('upload')" class="text-blue-600 font-semibold flex-1 text-center">Upload Resi</button>
-            <button onclick="switchTab('analisa')" class="text-blue-600 font-semibold flex-1 text-center">Analisa Data</button>
+            <button onclick="switchTab('analisa')" class="text-blue-600 font-semibold flex-1 text-center border-l">Analisa Data</button>
         </nav>
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbx7B7DSO84N_1Xe698PSoB7kvQQWCirev-C8CJHTGXVLy9CSCy4aMcjyzMFXgsRIaEU/exec"; // <--- GANTI DENGAN URL GAS ANDA
+        // GANTI BAGIAN DI DALAM TANDA KUTIP DENGAN URL WEB APP GOOGLE APPS SCRIPT ANDA
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxW592RWjXuIhp6GpozVjNG82KyJNNkrWEI2sxko-CBnn-tAwC_rdPVKuf-Q6BnvZxjrw/exec"; 
+        
         let base64Image = "";
 
+        // Fungsi Pindah Tab
         function switchTab(tab) {
             document.getElementById('tab-upload').classList.add('hidden-tab');
             document.getElementById('tab-analisa').classList.add('hidden-tab');
@@ -84,6 +95,7 @@
             if(tab === 'analisa') loadAnalisa();
         }
 
+        // Fungsi Tampilkan Form Sesuai Pilihan
         function toggleForm() {
             const type = document.getElementById('orderType').value;
             if (type === 'shopee') {
@@ -95,49 +107,54 @@
             }
         }
 
+        // Fungsi Proses Gambar & Baca OCR
         async function handleImage(event) {
             const file = event.target.files[0];
             if (!file) return;
 
             document.getElementById('ocrStatus').innerText = "Sedang kompresi & membaca resi...";
             
+            // Kompresi Gambar agar hemat kuota & cepat diproses
             const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1024, useWebWorker: true };
             const compressedFile = await imageCompression(file, options);
             base64Image = await imageCompression.getDataUrlFromFile(compressedFile);
 
+            // OCR membaca teks
             Tesseract.recognize(compressedFile, 'ind').then(({ data: { text } }) => {
                 document.getElementById('ocrStatus').innerText = "Teks berhasil dibaca! Silakan periksa kembali datanya.";
                 parseOCR(text, document.getElementById('orderType').value);
             }).catch(err => {
                 document.getElementById('ocrStatus').innerText = "Gagal membaca teks otomatis. Silakan isi manual.";
+                console.error(err);
             });
         }
 
+        // Fungsi Utama Parsing OCR
         function parseOCR(text, type) {
             const lines = text.split('\n').map(l => l.trim()).filter(l => l);
             const fullText = lines.join(' '); 
 
-            // --- CARI TANGGAL ---
+            // --- 1. CARI TANGGAL KEDUANYA ---
             const tglMatch = fullText.match(/\b\d{1,2}\s+(Jan|Feb|Mar|Apr|Mei|Jun|Jul|Agt|Sep|Okt|Nov|Des)\s+\d{4}\b/i);
             const tgl = tglMatch ? tglMatch[0] : new Date().toLocaleDateString('id-ID');
 
-            // --- CARI TOTAL PENDAPATAN (Bisa ada titik, koma, desimal) ---
+            // --- 2. CARI TOTAL KEDUANYA ---
             const totalMatch = fullText.match(/Rp\s*([\d\.,]+)/i);
             let total = '';
             if (totalMatch) {
                 total = totalMatch[1].replace(/\./g, ''); // Hapus titik ribuan
-                total = total.split(',')[0]; // Ambil angka sebelum koma
+                total = total.split(',')[0]; // Ambil angka mentah sebelum koma (jika ada desimal inDrive)
             }
 
             if (type === 'shopee') {
                 document.getElementById('shopee-tgl').value = tgl;
                 document.getElementById('shopee-total').value = total;
 
-                // --- CARI NAMA RESTO (Shopee) ---
+                // --- 3. CARI NAMA RESTO (Shopee) ---
                 let restoIndex = -1;
                 for (let i = 0; i < lines.length; i++) {
                     if (lines[i].toLowerCase().includes('shopeefood') || lines[i].toLowerCase().includes('rp')) {
-                        restoIndex = i + 1; 
+                        restoIndex = i + 1; // Ambil baris di bawah teks ShopeeFood atau Rp
                         break;
                     }
                 }
@@ -146,10 +163,11 @@
                 if (restoIndex !== -1 && restoIndex < lines.length) {
                      resto = lines[restoIndex];
                      if (resto.toLowerCase().includes('alamat pelanggan')) {
-                         resto = ''; 
+                         resto = ''; // Jika salah ambil, kosongkan agar masuk ke fallback
                      }
                 }
                 
+                // Fallback pencarian nama resto jika format acak
                 if (!resto) {
                      const excludeWords = ['riwayat', 'pesanan', 'selesai', 'dibatalkan', 'shopeefood', 'total', 'pendapatan', 'alamat', 'pelanggan', 'disembunyikan', 'akhir', 'daftar', 'rp'];
                      for (let line of lines) {
@@ -169,17 +187,17 @@
                          }
                      }
                 }
-                // Hapus simbol aneh di awal kalimat (misal ikon terbaca sebagai *)
+                // .replace(/^[^\w\s]+/g, '') membuang karakter ikon (titik/garis) yang salah baca di awal teks
                 document.getElementById('shopee-resto').value = resto.replace(/^[^\w\s]+/g, '').trim();
 
             } else {
-                // --- LOGIKA INDRIVE BARU ---
+                // --- 4. LOGIKA INDRIVE ---
                 document.getElementById('indrive-tgl').value = tgl;
                 document.getElementById('indrive-total').value = total;
                 
                 let awal = '', akhir = '', username = '';
                 
-                // 1. CARI RUTE (Patokan: Di bawah "Perjalanan Selesai")
+                // CARI RUTE (Patokan: Di bawah "Perjalanan Selesai")
                 let selesaiIdx = -1;
                 for (let i = 0; i < lines.length; i++) {
                     let text = lines[i].toLowerCase();
@@ -193,7 +211,7 @@
                     const ruteLines = [];
                     for(let i = selesaiIdx + 1; i < lines.length; i++) {
                         let text = lines[i].toLowerCase();
-                        // Berhenti mencari rute jika ketemu kata durasi, jarak, atau format jam (misal 18:10)
+                        // Berhenti jika ketemu durasi, jarak, atau jam
                         if(text.includes('durasi') || text.includes('jarak') || text.match(/^\d{1,2}:\d{2}$/)) {
                             break;
                         }
@@ -208,7 +226,7 @@
                     }
                 }
 
-                // 2. CARI USERNAME (Patokan: Di atas "Anda telah menilai")
+                // CARI USERNAME (Patokan: Di atas "Anda telah menilai")
                 let menilaiIdx = -1;
                 for (let i = 0; i < lines.length; i++) {
                      if (lines[i].toLowerCase().includes('menilai')) {
@@ -218,10 +236,9 @@
                 }
                 
                 if (menilaiIdx > 0) {
-                    // Cari ke atas dari kata "menilai" untuk menemukan nama user
                     for (let i = menilaiIdx - 1; i >= 0; i--) {
                         let text = lines[i].toLowerCase();
-                        // Abaikan baris berisi info durasi, jarak, atau jam
+                        // Cek ke atas dan abaikan baris yang berisi info durasi atau jam
                         if (!text.includes('durasi') && !text.includes('jarak') && !text.includes('mnt') && !text.includes('km') && !text.match(/^\d{1,2}:\d{2}$/)) {
                             username = lines[i];
                             break;
@@ -229,104 +246,21 @@
                     }
                 }
                 
-                // .replace(/^[^\w\s]+/g, '') berfungsi membuang simbol aneh di awal kalimat.
-                // Jadi jika ikon titik biru/hijau atau ikon senyum terbaca sebagai "O", "*", atau "•", akan otomatis dihapus.
+                // Membersihkan karakter ikon salah baca (simbol/O/titik)
                 document.getElementById('indrive-awal').value = awal.replace(/^[^\w\s]+/g, '').trim();
                 document.getElementById('indrive-akhir').value = akhir.replace(/^[^\w\s]+/g, '').trim();
                 document.getElementById('indrive-user').value = username.replace(/^[^\w\s]+/g, '').trim();
             }
         }
-                
-                if (!resto) {
-                     const excludeWords = ['riwayat', 'pesanan', 'selesai', 'dibatalkan', 'shopeefood', 'total', 'pendapatan', 'alamat', 'pelanggan', 'disembunyikan', 'akhir', 'daftar', 'rp'];
-                     for (let line of lines) {
-                         let isResto = true;
-                         let lineLower = line.toLowerCase();
-                         if (lineLower.match(/\b\d{1,2}\s+(jan|feb|mar|apr|mei|jun|jul|agt|sep|okt|nov|des)\s+\d{4}\b/)) continue;
-                         
-                         for (let word of excludeWords) {
-                             if (lineLower.includes(word)) {
-                                 isResto = false;
-                                 break;
-                             }
-                         }
-                         if (isResto && line.length > 3) { 
-                             resto = line;
-                             break;
-                         }
-                     }
-                }
-                document.getElementById('shopee-resto').value = resto.replace(/^[^\w\s]+/g, '').trim();
 
-            } else {
-                // --- LOGIKA INDRIVE ---
-                document.getElementById('indrive-tgl').value = tgl;
-                document.getElementById('indrive-total').value = total;
-                
-                let awal = '', akhir = '', username = '';
-                
-                // Cari Index baris "Perjalanan dalam kota" / "Perjalanan Selesai"
-                let perjalananIdx = -1;
-                for (let i=0; i<lines.length; i++) {
-                    if (lines[i].toLowerCase().includes('perjalanan dalam kota') || lines[i].toLowerCase().includes('selesai')) {
-                        perjalananIdx = i;
-                        break;
-                    }
-                }
-
-                if (perjalananIdx !== -1) {
-                    // Ambil lokasi awal (biasanya 1 atau 2 baris setelah 'Perjalanan Selesai')
-                    awal = lines[perjalananIdx + 1] || '';
-                    if (awal.toLowerCase().includes('selesai')) awal = lines[perjalananIdx + 2] || '';
-                    
-                    // Karena OCR mungkin menggabung rute, kita coba tangkap bagian rute
-                    const ruteLines = [];
-                    for(let i=perjalananIdx+1; i<lines.length; i++) {
-                        // Berhenti kalau ketemu 'Durasi', 'Jarak', atau teks waktu (seperti '18:10')
-                        if(lines[i].toLowerCase().includes('durasi') || lines[i].toLowerCase().includes('jarak') || /^\d{1,2}:\d{2}$/.test(lines[i])) break;
-                        ruteLines.push(lines[i]);
-                    }
-                    
-                    if (ruteLines.length >= 2) {
-                        awal = ruteLines[0];
-                        akhir = ruteLines[ruteLines.length - 1]; // Baris terakhir sebelum Durasi/Jarak
-                    }
-                }
-
-                // --- CARI USERNAME (Pelanggan) ---
-                // Biasanya Username ada di antara info 'Jarak/km' dan teks 'Anda telah menilai' / 'Resi'
-                let durasiIdx = -1;
-                for (let i=0; i<lines.length; i++) {
-                     if (lines[i].toLowerCase().includes('durasi') || lines[i].toLowerCase().includes('km')) {
-                         durasiIdx = i;
-                     }
-                }
-                
-                if (durasiIdx !== -1) {
-                    for (let i = durasiIdx + 1; i < lines.length; i++) {
-                        let lineLower = lines[i].toLowerCase();
-                        // Abaikan baris yang mengandung angka saja atau ikon
-                        if (lineLower.includes('menilai') || lineLower.includes('resi') || lineLower.includes('dukungan') || lineLower.includes('pendapatan')) break;
-                        if (!/^[\d\W]+$/.test(lines[i]) && lines[i].length > 2) { // Cari baris teks yang bukan sekadar simbol/angka
-                            username = lines[i];
-                            break;
-                        }
-                    }
-                }
-                
-                document.getElementById('indrive-awal').value = awal.replace(/^[^\w\s]+/g, '').trim();
-                document.getElementById('indrive-akhir').value = akhir.replace(/^[^\w\s]+/g, '').trim();
-                document.getElementById('indrive-user').value = username.trim();
-            }
-        }
-
+        // Fungsi Simpan Data ke GAS Backend
         async function submitData() {
-            // ... (Fungsi submitData sama seperti sebelumnya) ...
             const type = document.getElementById('orderType').value;
-            if(!base64Image) return alert("Pilih foto terlebih dahulu!");
+            if(!base64Image) return alert("Pilih foto resi terlebih dahulu!");
             
             const btn = document.querySelector('button[onclick="submitData()"]');
-            btn.innerText = "Menyimpan..."; btn.disabled = true;
+            btn.innerText = "Menyimpan (Tunggu sebentar)..."; 
+            btn.disabled = true;
 
             let payload = { type: type, photo: base64Image };
 
@@ -349,20 +283,22 @@
                 });
                 const result = await response.json();
                 if(result.status === 'success') {
-                    alert("Berhasil disimpan!");
+                    alert("Orderan berhasil dicatat!");
                     window.location.reload();
                 } else {
-                    alert("Gagal: " + result.message);
+                    alert("Gagal menyimpan: " + result.message);
                 }
             } catch (error) {
-                alert("Error jaringan.");
+                alert("Error jaringan. Pastikan URL GAS sudah benar.");
+                console.error(error);
             }
-            btn.innerText = "Simpan ke Drive & Sheet"; btn.disabled = false;
+            btn.innerText = "Simpan ke Drive & Sheet"; 
+            btn.disabled = false;
         }
 
+        // Fungsi Mengambil Data Analisa dari Spreadsheet
         async function loadAnalisa() {
-            // ... (Fungsi loadAnalisa sama seperti sebelumnya) ...
-             document.getElementById('total-semua').innerText = "Memuat...";
+            document.getElementById('total-semua').innerText = "Memuat data...";
             try {
                 const response = await fetch(GAS_URL);
                 const res = await response.json();
@@ -370,6 +306,7 @@
                 let shopeeTotal = 0, indriveTotal = 0;
                 let shopeeCounts = {}, indriveCounts = {};
 
+                // Proses data shopee
                 res.shopee.slice(1).forEach(row => {
                     const resto = row[1];
                     const hrg = parseInt(row[2]) || 0;
@@ -377,21 +314,24 @@
                     if(resto) shopeeCounts[resto] = (shopeeCounts[resto] || 0) + 1;
                 });
 
+                // Proses data indrive
                 res.indrive.slice(1).forEach(row => {
-                    const rute = row[2] + " - " + row[3];
+                    // Gabung rute awal - rute akhir
+                    const rute = row[2] + " ➡️ " + row[3];
                     const hrg = parseInt(row[4]) || 0;
                     indriveTotal += hrg;
                     if(row[2] && row[3]) indriveCounts[rute] = (indriveCounts[rute] || 0) + 1;
                 });
 
-                const topShopee = Object.keys(shopeeCounts).sort((a,b) => shopeeCounts[b] - shopeeCounts[a])[0] || "-";
-                const topIndrive = Object.keys(indriveCounts).sort((a,b) => indriveCounts[b] - indriveCounts[a])[0] || "-";
+                const topShopee = Object.keys(shopeeCounts).sort((a,b) => shopeeCounts[b] - shopeeCounts[a])[0] || "Belum ada data";
+                const topIndrive = Object.keys(indriveCounts).sort((a,b) => indriveCounts[b] - indriveCounts[a])[0] || "Belum ada data";
 
                 document.getElementById('top-shopee').innerText = topShopee + " (" + (shopeeCounts[topShopee]||0) + " order)";
-                document.getElementById('top-indrive').innerText = topIndrive + " (" + (indriveCounts[topIndrive]||0) + " trip)";
+                document.getElementById('top-indrive').innerText = topIndrive + " (" + (indriveCounts[topIndrive]||0) + " kali)";
                 document.getElementById('total-semua').innerText = "Rp " + (shopeeTotal + indriveTotal).toLocaleString('id-ID');
             } catch(e) {
-                document.getElementById('total-semua').innerText = "Gagal memuat data.";
+                document.getElementById('total-semua').innerText = "Gagal memuat data dari Spreadsheet.";
+                console.error(e);
             }
         }
     </script>
